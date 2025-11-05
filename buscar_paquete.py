@@ -1,132 +1,412 @@
 """
-Script para verificar la estructura del proyecto SIGEU (Sistema Integral de Gestión Educativa Universitaria).
-Busca directorios clave (entidades, servicios, patrones) y valida que sean paquetes Python (contienen __init__.py).
+Script para buscar el paquete python_sigeu desde el directorio raiz del proyecto.
+Incluye funcionalidad para integrar archivos Python en cada nivel del arbol de directorios.
 """
 import os
 import sys
 from datetime import datetime
 
-# --- CONFIGURACIÓN ESPECÍFICA DEL PROYECTO SIGEU ---
-# Se define una lista de directorios/paquetes clave a verificar en la raíz del proyecto.
-PAQUETES_CLAVE_SIGEU = ['entidades', 'servicios', 'patrones']
-# El nombre del directorio raíz del proyecto para la búsqueda de paquetes principales.
-NOMBRE_PROYECTO_RAIZ = os.path.basename(os.getcwd()) # Asume el directorio actual es la raíz SIGEU
-# ----------------------------------------------------
 
-def buscar_paquete_clave(directorio_raiz: str, nombre_paquete: str) -> list:
+def buscar_paquete(directorio_raiz: str, nombre_paquete: str) -> list:
     """
-    Busca un paquete Python (directorio con __init__.py) en un directorio específico.
+    Busca un paquete Python en el directorio raiz y subdirectorios.
 
     Args:
-        directorio_raiz: Directorio donde iniciar la búsqueda.
-        nombre_paquete: Nombre del paquete a buscar.
+        directorio_raiz: Directorio desde donde iniciar la busqueda
+        nombre_paquete: Nombre del paquete a buscar
 
     Returns:
-        Lista de rutas donde se encontró el paquete.
+        Lista de rutas donde se encontro el paquete
     """
     paquetes_encontrados = []
 
     for raiz, directorios, archivos in os.walk(directorio_raiz):
-        # Solo buscamos paquetes clave en el primer nivel de subdirectorios
-        if raiz == directorio_raiz:
-            for nombre_dir in directorios:
-                if nombre_dir == nombre_paquete:
-                    ruta_paquete = os.path.join(raiz, nombre_dir)
-                    # Verificar que sea un paquete Python (contiene __init__.py)
-                    if '__init__.py' in os.listdir(ruta_paquete):
-                        paquetes_encontrados.append(ruta_paquete)
-                        print(f"[+] Paquete encontrado: {ruta_paquete}")
-                    else:
-                        print(f"[!] Directorio encontrado pero NO es un paquete Python (falta __init__.py): {ruta_paquete}")
-            # Detener el walk después del primer nivel (el raíz)
-            break
-            
+        # Verificar si el directorio actual es el paquete buscado
+        nombre_dir = os.path.basename(raiz)
+
+        if nombre_dir == nombre_paquete:
+            # Verificar que sea un paquete Python (contiene __init__.py)
+            if '__init__.py' in archivos:
+                paquetes_encontrados.append(raiz)
+                print(f"[+] Paquete encontrado: {raiz}")
+            else:
+                print(f"[!] Directorio encontrado pero no es un paquete Python: {raiz}")
+
     return paquetes_encontrados
+
 
 def obtener_archivos_python(directorio: str) -> list:
     """
     Obtiene todos los archivos Python en un directorio (sin recursion).
+
+    Args:
+        directorio: Ruta del directorio a examinar
+
+    Returns:
+        Lista de rutas completas de archivos .py
     """
     archivos_python = []
     try:
         for item in os.listdir(directorio):
-            if item.endswith('.py') and os.path.isfile(os.path.join(directorio, item)):
-                archivos_python.append(os.path.join(directorio, item))
+            ruta_completa = os.path.join(directorio, item)
+            if os.path.isfile(ruta_completa) and item.endswith('.py'):
+                # Excluir archivos integradores para evitar recursion infinita
+                if item not in ['integrador.py', 'integradorFinal.py']:
+                    archivos_python.append(ruta_completa)
     except PermissionError:
-        print(f"      [!] Sin permisos para leer el directorio {directorio}")
-    return archivos_python
+        print(f"[!] Sin permisos para leer: {directorio}")
+
+    return sorted(archivos_python)
 
 
-def mostrar_estructura_paquete(ruta_paquete: str):
-    """Muestra el contenido básico de un paquete y subpaquetes."""
-    print(f"    Contenido de {os.path.basename(ruta_paquete)}:")
+def obtener_subdirectorios(directorio: str) -> list:
+    """
+    Obtiene todos los subdirectorios inmediatos de un directorio.
+
+    Args:
+        directorio: Ruta del directorio a examinar
+
+    Returns:
+        Lista de rutas completas de subdirectorios
+    """
+    subdirectorios = []
     try:
-        # Explorar el contenido para mostrar una vista jerárquica
-        for item in sorted(os.listdir(ruta_paquete)):
-            ruta_item = os.path.join(ruta_paquete, item)
-            
-            # Excluir directorios privados y de caché
-            if item in ['__pycache__', '.git', '.vscode']:
-                continue
-                
-            if os.path.isdir(ruta_item):
-                if '__init__.py' in os.listdir(ruta_item):
-                    print(f"      [DIR-PKG] {item}/")
-                else:
-                    print(f"      [DIR]   {item}/")
-            elif os.path.isfile(ruta_item):
-                if item.endswith('.py'):
-                    print(f"      [FILE-PY] {item}")
-                else:
-                    print(f"      [FILE]    {item}")
+        for item in os.listdir(directorio):
+            ruta_completa = os.path.join(directorio, item)
+            if os.path.isdir(ruta_completa):
+                # Excluir directorios especiales
+                if not item.startswith('.') and item not in ['__pycache__', 'venv', '.venv']:
+                    subdirectorios.append(ruta_completa)
     except PermissionError:
-        print(f"      [!] Sin permisos para leer el directorio")
+        print(f"[!] Sin permisos para leer: {directorio}")
+
+    return sorted(subdirectorios)
+
+
+def leer_contenido_archivo(ruta_archivo: str) -> str:
+    """
+    Lee el contenido de un archivo Python.
+
+    Args:
+        ruta_archivo: Ruta completa del archivo
+
+    Returns:
+        Contenido del archivo como string
+    """
+    try:
+        with open(ruta_archivo, 'r', encoding='utf-8') as archivo:
+            return archivo.read()
+    except Exception as error:
+        print(f"[!] Error al leer {ruta_archivo}: {error}")
+        return f"# Error al leer este archivo: {error}\n"
+
+
+def crear_archivo_integrador(directorio: str, archivos_python: list) -> bool:
+    """
+    Crea un archivo integrador.py con el contenido de todos los archivos Python.
+
+    Args:
+        directorio: Directorio donde crear el archivo integrador
+        archivos_python: Lista de rutas de archivos Python a integrar
+
+    Returns:
+        True si se creo exitosamente, False en caso contrario
+    """
+    if not archivos_python:
+        return False
+
+    ruta_integrador = os.path.join(directorio, 'integrador.py')
+
+    try:
+        with open(ruta_integrador, 'w', encoding='utf-8') as integrador:
+            # Encabezado
+            integrador.write('"""\n')
+            integrador.write(f"Archivo integrador generado automaticamente\n")
+            integrador.write(f"Directorio: {directorio}\n")
+            integrador.write(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            integrador.write(f"Total de archivos integrados: {len(archivos_python)}\n")
+            integrador.write('"""\n\n')
+
+            # Integrar cada archivo
+            for idx, archivo in enumerate(archivos_python, 1):
+                nombre_archivo = os.path.basename(archivo)
+                integrador.write(f"# {'=' * 80}\n")
+                integrador.write(f"# ARCHIVO {idx}/{len(archivos_python)}: {nombre_archivo}\n")
+                integrador.write(f"# Ruta: {archivo}\n")
+                integrador.write(f"# {'=' * 80}\n\n")
+
+                contenido = leer_contenido_archivo(archivo)
+                integrador.write(contenido)
+                integrador.write("\n\n")
+
+        print(f"[OK] Integrador creado: {ruta_integrador}")
+        print(f"     Archivos integrados: {len(archivos_python)}")
+        return True
+
+    except Exception as error:
+        print(f"[!] Error al crear integrador en {directorio}: {error}")
+        return False
+
+
+def procesar_directorio_recursivo(directorio: str, nivel: int = 0, archivos_totales: list = None) -> list:
+    """
+    Procesa un directorio de forma recursiva, creando integradores en cada nivel.
+    Utiliza DFS (Depth-First Search) para llegar primero a los niveles mas profundos.
+
+    Args:
+        directorio: Directorio a procesar
+        nivel: Nivel de profundidad actual (para logging)
+        archivos_totales: Lista acumulativa de todos los archivos procesados
+
+    Returns:
+        Lista de todos los archivos Python procesados en el arbol
+    """
+    if archivos_totales is None:
+        archivos_totales = []
+
+    indentacion = "  " * nivel
+    print(f"{indentacion}[INFO] Procesando nivel {nivel}: {os.path.basename(directorio)}")
+
+    # Obtener subdirectorios
+    subdirectorios = obtener_subdirectorios(directorio)
+
+    # Primero, procesar recursivamente todos los subdirectorios (DFS)
+    for subdir in subdirectorios:
+        procesar_directorio_recursivo(subdir, nivel + 1, archivos_totales)
+
+    # Despues de procesar subdirectorios, procesar archivos del nivel actual
+    archivos_python = obtener_archivos_python(directorio)
+
+    if archivos_python:
+        print(f"{indentacion}[+] Encontrados {len(archivos_python)} archivo(s) Python")
+        crear_archivo_integrador(directorio, archivos_python)
+        # Agregar archivos a la lista total
+        archivos_totales.extend(archivos_python)
+    else:
+        print(f"{indentacion}[INFO] No hay archivos Python en este nivel")
+
+    return archivos_totales
+
+
+def crear_integrador_final(directorio_raiz: str, archivos_totales: list) -> bool:
+    """
+    Crea un archivo integradorFinal.py con TODO el codigo fuente de todas las ramas.
+
+    Args:
+        directorio_raiz: Directorio donde crear el archivo integrador final
+        archivos_totales: Lista completa de todos los archivos Python procesados
+
+    Returns:
+        True si se creo exitosamente, False en caso contrario
+    """
+    if not archivos_totales:
+        print("[!] No hay archivos para crear el integrador final")
+        return False
+
+    ruta_integrador_final = os.path.join(directorio_raiz, 'integradorFinal.py')
+
+    # Organizar archivos por directorio para mejor estructura
+    archivos_por_directorio = {}
+    for archivo in archivos_totales:
+        directorio = os.path.dirname(archivo)
+        if directorio not in archivos_por_directorio:
+            archivos_por_directorio[directorio] = []
+        archivos_por_directorio[directorio].append(archivo)
+
+    try:
+        with open(ruta_integrador_final, 'w', encoding='utf-8') as integrador_final:
+            # Encabezado principal
+            integrador_final.write('"""\n')
+            integrador_final.write("INTEGRADOR FINAL - CONSOLIDACION COMPLETA DEL PROYECTO\n")
+            integrador_final.write("=" * 76 + "\n")
+            integrador_final.write(f"Directorio raiz: {directorio_raiz}\n")
+            integrador_final.write(f"Fecha de generacion: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            integrador_final.write(f"Total de archivos integrados: {len(archivos_totales)}\n")
+            integrador_final.write(f"Total de directorios procesados: {len(archivos_por_directorio)}\n")
+            integrador_final.write("=" * 76 + "\n")
+            integrador_final.write('"""\n\n')
+
+            # Tabla de contenidos
+            integrador_final.write("# " + "=" * 78 + "\n")
+            integrador_final.write("# TABLA DE CONTENIDOS\n")
+            integrador_final.write("# " + "=" * 78 + "\n\n")
+
+            contador_global = 1
+            for directorio in sorted(archivos_por_directorio.keys()):
+                dir_relativo = os.path.relpath(directorio, directorio_raiz)
+                integrador_final.write(f"# DIRECTORIO: {dir_relativo}\n")
+                for archivo in sorted(archivos_por_directorio[directorio]):
+                    nombre_archivo = os.path.basename(archivo)
+                    integrador_final.write(f"#   {contador_global}. {nombre_archivo}\n")
+                    contador_global += 1
+                integrador_final.write("#\n")
+
+            integrador_final.write("\n\n")
+
+            # Contenido completo organizado por directorio
+            contador_global = 1
+            for directorio in sorted(archivos_por_directorio.keys()):
+                dir_relativo = os.path.relpath(directorio, directorio_raiz)
+
+                # Separador de directorio
+                integrador_final.write("\n" + "#" * 80 + "\n")
+                integrador_final.write(f"# DIRECTORIO: {dir_relativo}\n")
+                integrador_final.write("#" * 80 + "\n\n")
+
+                # Procesar cada archivo del directorio
+                for archivo in sorted(archivos_por_directorio[directorio]):
+                    nombre_archivo = os.path.basename(archivo)
+
+                    integrador_final.write(f"# {'=' * 78}\n")
+                    integrador_final.write(f"# ARCHIVO {contador_global}/{len(archivos_totales)}: {nombre_archivo}\n")
+                    integrador_final.write(f"# Directorio: {dir_relativo}\n")
+                    integrador_final.write(f"# Ruta completa: {archivo}\n")
+                    integrador_final.write(f"# {'=' * 78}\n\n")
+
+                    contenido = leer_contenido_archivo(archivo)
+                    integrador_final.write(contenido)
+                    integrador_final.write("\n\n")
+
+                    contador_global += 1
+
+            # Footer
+            integrador_final.write("\n" + "#" * 80 + "\n")
+            integrador_final.write("# FIN DEL INTEGRADOR FINAL\n")
+            integrador_final.write(f"# Total de archivos: {len(archivos_totales)}\n")
+            integrador_final.write(f"# Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            integrador_final.write("#" * 80 + "\n")
+
+        print(f"\n[OK] Integrador final creado: {ruta_integrador_final}")
+        print(f"     Total de archivos integrados: {len(archivos_totales)}")
+        print(f"     Total de directorios procesados: {len(archivos_por_directorio)}")
+
+        # Mostrar tamanio del archivo
+        tamanio = os.path.getsize(ruta_integrador_final)
+        if tamanio < 1024:
+            tamanio_str = f"{tamanio} bytes"
+        elif tamanio < 1024 * 1024:
+            tamanio_str = f"{tamanio / 1024:.2f} KB"
+        else:
+            tamanio_str = f"{tamanio / (1024 * 1024):.2f} MB"
+        print(f"     Tamanio del archivo: {tamanio_str}")
+
+        return True
+
+    except Exception as error:
+        print(f"[!] Error al crear integrador final: {error}")
+        return False
+
+
+def integrar_arbol_directorios(directorio_raiz: str) -> None:
+    """
+    Inicia el proceso de integracion para todo el arbol de directorios.
+
+    Args:
+        directorio_raiz: Directorio raiz desde donde comenzar
+    """
+    print("\n" + "=" * 80)
+    print("INICIANDO INTEGRACION DE ARCHIVOS PYTHON")
+    print("=" * 80)
+    print(f"Directorio raiz: {directorio_raiz}\n")
+
+    # Procesar directorios y obtener lista de todos los archivos
+    archivos_totales = procesar_directorio_recursivo(directorio_raiz)
+
+    print("\n" + "=" * 80)
+    print("INTEGRACION POR NIVELES COMPLETADA")
+    print("=" * 80)
+
+    # Crear integrador final con todos los archivos
+    if archivos_totales:
+        print("\n" + "=" * 80)
+        print("CREANDO INTEGRADOR FINAL")
+        print("=" * 80)
+        crear_integrador_final(directorio_raiz, archivos_totales)
+
+    print("\n" + "=" * 80)
+    print("PROCESO COMPLETO FINALIZADO")
+    print("=" * 80)
 
 
 def main():
-    directorio_raiz = os.getcwd()
-    
-    print("=" * 60)
-    print(f"  VERIFICADOR DE ESTRUCTURA DEL PROYECTO {NOMBRE_PROYECTO_RAIZ} (SIGEU)")
-    print("=" * 60)
-    print(f"[INFO] Buscando desde la raíz del proyecto: {directorio_raiz}")
-    print(f"[INFO] Verificando paquetes clave: {', '.join(PAQUETES_CLAVE_SIGEU)}")
-    print("\n" + "-" * 60)
+    """Funcion principal del script."""
+    # Obtener el directorio raiz del proyecto (donde esta este script)
+    directorio_raiz = os.path.dirname(os.path.abspath(__file__))
 
-    paquetes_totales = []
-    paquetes_faltantes = []
-    
-    for paquete_nombre in PAQUETES_CLAVE_SIGEU:
-        encontrados = buscar_paquete_clave(directorio_raiz, paquete_nombre)
-        if encontrados:
-            paquetes_totales.extend(encontrados)
+    # Verificar argumentos de linea de comandos
+    if len(sys.argv) > 1:
+        comando = sys.argv[1].lower()
+
+        if comando == "integrar":
+            # Modo de integracion de archivos
+            if len(sys.argv) > 2:
+                directorio_objetivo = sys.argv[2]
+                if not os.path.isabs(directorio_objetivo):
+                    directorio_objetivo = os.path.join(directorio_raiz, directorio_objetivo)
+            else:
+                directorio_objetivo = directorio_raiz
+
+            if not os.path.isdir(directorio_objetivo):
+                print(f"[!] El directorio no existe: {directorio_objetivo}")
+                return 1
+
+            integrar_arbol_directorios(directorio_objetivo)
+            return 0
+
+        elif comando == "help" or comando == "--help" or comando == "-h":
+            print("Uso: python buscar_paquete.py [COMANDO] [OPCIONES]")
+            print("")
+            print("Comandos disponibles:")
+            print("  (sin argumentos)     Busca el paquete python_sigeu")
+            print("  integrar [DIR]       Integra archivos Python en el arbol de directorios")
+            print("                       DIR: directorio raiz (por defecto: directorio actual)")
+            print("  help                 Muestra esta ayuda")
+            print("")
+            print("Ejemplos:")
+            print("  python buscar_paquete.py")
+            print("  python buscar_paquete.py integrar")
+            print("  python buscar_paquete.py integrar python_sigeu")
+            return 0
+
         else:
-            paquetes_faltantes.append(paquete_nombre)
+            print(f"[!] Comando desconocido: {comando}")
+            print("    Use 'python buscar_paquete.py help' para ver los comandos disponibles")
+            return 1
 
-    print("\n" + "=" * 60)
-    if paquetes_faltantes:
-        print(f"[FAIL] Faltan paquetes clave ({len(paquetes_faltantes)}): {', '.join(paquetes_faltantes)}")
-        print("[FAIL] La estructura no cumple con la Arquitectura por Capas.")
-        return 1
+    # Modo por defecto: buscar paquete
+    print(f"[INFO] Buscando desde: {directorio_raiz}")
+    print(f"[INFO] Buscando paquete: python_sigeu")
+    print("")
+
+    # Buscar el paquete
+    paquetes = buscar_paquete(directorio_raiz, "python_sigeu")
+
+    print("")
+    if paquetes:
+        print(f"[OK] Se encontraron {len(paquetes)} paquete(s):")
+        for paquete in paquetes:
+            print(f"  - {paquete}")
+
+            # Mostrar estructura basica del paquete
+            print(f"    Contenido:")
+            try:
+                contenido = os.listdir(paquete)
+                for item in sorted(contenido)[:10]:  # Mostrar primeros 10 items
+                    ruta_item = os.path.join(paquete, item)
+                    if os.path.isdir(ruta_item):
+                        print(f"      [DIR]  {item}")
+                    else:
+                        print(f"      [FILE] {item}")
+                if len(contenido) > 10:
+                    print(f"      ... y {len(contenido) - 10} items mas")
+            except PermissionError:
+                print(f"      [!] Sin permisos para leer el directorio")
     else:
-        print(f"[OK] Se encontraron {len(paquetes_totales)} paquetes clave y subpaquetes.")
-        for ruta in paquetes_totales:
-             mostrar_estructura_paquete(ruta)
+        print("[!] No se encontro el paquete python_sigeu")
+        return 1
 
-    print("\n" + "-" * 60)
-    print("[INFO] Buscando archivos Python sueltos en la raíz...")
-    archivos_raiz = [f for f in os.listdir(directorio_raiz) if f.endswith('.py') and os.path.isfile(f)]
-    for archivo in archivos_raiz:
-        print(f"  [FILE-PY] {archivo}")
-    
-    print("\n[OK] Verificación de estructura finalizada.")
     return 0
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == 'help':
-        print("\nUso: python buscar_paquete.py")
-        print("Verifica si los directorios 'entidades', 'servicios' y 'patrones' existen y son paquetes Python válidos.")
-        sys.exit(0)
-        
     sys.exit(main())
