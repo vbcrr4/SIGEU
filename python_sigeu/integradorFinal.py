@@ -2,7 +2,7 @@
 INTEGRADOR FINAL - CONSOLIDACION COMPLETA DEL PROYECTO
 ============================================================================
 Directorio raiz: /home/debian-user/SIGEU/python_sigeu
-Fecha de generacion: 2025-11-05 18:24:02
+Fecha de generacion: 2025-11-05 18:47:21
 Total de archivos integrados: 35
 Total de directorios procesados: 14
 ============================================================================
@@ -984,5 +984,5 @@ class SistemaAlertas(Observable[EventoAlerta]):
 ################################################################################
 # FIN DEL INTEGRADOR FINAL
 # Total de archivos: 35
-# Generado: 2025-11-05 18:24:02
+# Generado: 2025-11-05 18:47:21
 ################################################################################

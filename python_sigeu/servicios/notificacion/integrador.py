@@ -1,7 +1,7 @@
 """
 Archivo integrador generado automaticamente
 Directorio: /home/debian-user/SIGEU/python_sigeu/servicios/notificacion
-Fecha: 2025-11-05 18:24:02
+Fecha: 2025-11-05 18:47:21
 Total de archivos integrados: 2
 """
 
