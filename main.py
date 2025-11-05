@@ -1,6 +1,17 @@
 # main.py
 import os
+import sys  # Necesario para manipular el path
 from datetime import date
+
+# ======================================================================
+# *** MODIFICACIÓN DE RUTA NECESARIA ***
+# Añade el directorio 'python_sigeu' al path para que las importaciones funcionen.
+RUTA_PAQUETE_PRINCIPAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'python_sigeu')
+if RUTA_PAQUETE_PRINCIPAL not in sys.path:
+    sys.path.append(RUTA_PAQUETE_PRINCIPAL)
+# ======================================================================
+
+
 from servicios.registro_servicios import RegistroServicios
 from entidades.academico.facultad import Facultad
 from entidades.academico.carrera import Carrera
